@@ -107,8 +107,8 @@ class ReportSite(object):
         if not ContentType._meta.installed:
             raise ImproperlyConfigured("Put 'django.contrib.contenttypes' in "
                 "your INSTALLED_APPS setting in order to use the admin application.")
-        if not ('django.contrib.auth.context_processors.auth' in settings.TEMPLATE_CONTEXT_PROCESSORS or
-            'django.core.context_processors.auth' in settings.TEMPLATE_CONTEXT_PROCESSORS):
+        if not ('django.contrib.auth.context_processors.auth' in settings.TEMPLATES[0]['OPTIONS']['context_processors'] or
+            'django.core.context_processors.auth' in settings.TEMPLATES[0]['OPTIONS']['context_processors']):
             raise ImproperlyConfigured("Put 'django.contrib.auth.context_processors.auth' "
                 "in your TEMPLATE_CONTEXT_PROCESSORS setting in order to use the admin application.")
 
@@ -170,7 +170,7 @@ class ReportSite(object):
         return logout(request, **defaults)
 
     def get_urls(self):
-        from django.conf.urls import patterns, url, include
+        from django.conf.urls import url, include
 
         if settings.DEBUG:
             self.check_dependencies()
@@ -180,13 +180,13 @@ class ReportSite(object):
                 return self.report_view(view, cacheable)(*args, **kwargs)
             return update_wrapper(wrapper, view)
 
-        urlpatterns = patterns('')
+        urlpatterns = []
 
         # Add in each report's views.
         for model_class, model_instance in six.iteritems(self._registry):
-            urlpatterns += patterns('',
+            urlpatterns += [
                 url(r'^%s/' % model_instance.slug, model_class.as_view(), 
-                    name=model_instance.slug))
+                    name=model_instance.slug)]
         return urlpatterns
 
     @property

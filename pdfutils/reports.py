@@ -87,7 +87,7 @@ class ReportBase(TemplateView):
         Renders a PDF report to the HttpRequest object
         """
         ctx = self.get_context_data()
-        self.response = HttpResponse(mimetype='application/pdf', \
+        self.response = HttpResponse(
                 content_type='application/pdf; name=%s' % self.filename())
 
         generate_pdf(self.template_name, \
