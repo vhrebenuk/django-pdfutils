@@ -1,12 +1,19 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import os
 import StringIO
+import posixpath
+
+try:
+    from urllib.parse import unquote
+except ImportError:  # Python 2
+    from urllib import unquote
 
 from django.conf import settings
+from django.contrib.staticfiles import finders
 from django.template.context import Context
 from django.template.loader import get_template
 
-from xhtml2pdf import pisa # TODO: Change this when the lib changes.
+from xhtml2pdf import pisa  # TODO: Change this when the lib changes.
 
 """
 
@@ -24,7 +31,7 @@ class UnsupportedMediaPathException(Exception):
 def unique(seq):
     seen = set()
     seen_add = seen.add
-    return [ x for x in seq if not (x in seen or seen_add(x))]
+    return [x for x in seq if not (x in seen or seen_add(x))]
 
 
 def fetch_resources(uri, rel):
@@ -39,17 +46,13 @@ def fetch_resources(uri, rel):
         path = os.path.join(settings.MEDIA_ROOT,
                             uri.replace(settings.MEDIA_URL, ""))
     elif uri.startswith(settings.STATIC_URL):
-        path = os.path.join(settings.STATIC_ROOT,
-                            uri.replace(settings.STATIC_URL, ""))
-        if not os.path.exists(path):
-            for d in settings.STATICFILES_DIRS:
-                path = os.path.join(d, uri.replace(settings.STATIC_URL, ""))
-                if os.path.exists(path):
-                    break
+        normalized_path = posixpath.normpath(
+            unquote(uri.replace(settings.STATIC_URL, ""))).lstrip('/')
+        path = finders.find(normalized_path)
     else:
         raise UnsupportedMediaPathException(
-                                'media urls must start with %s or %s' % (
-                                settings.MEDIA_ROOT, settings.STATIC_ROOT))
+            'media urls must start with %s or %s' % (
+                settings.MEDIA_ROOT, settings.STATIC_ROOT))
     return path
 
 
@@ -58,13 +61,14 @@ def generate_pdf_template_object(template_object, file_object, context):
     Inner function to pass template objects directly instead of passing a filename
     """
     html = template_object.render(context)
-    pisaStatus = pisa.CreatePDF(html.encode("UTF-8"), file_object, encoding='UTF-8')
+    pisaStatus = pisa.CreatePDF(html.encode("UTF-8"), file_object,
+                                encoding='UTF-8')
     file_object.close()
     return pisaStatus.err
-    
 
 
-def generate_pdf(template_name, file_object=None, context=None): # pragma: no cover
+def generate_pdf(template_name, file_object=None,
+                 context=None):  # pragma: no cover
     """
     Uses the xhtml2pdf library to render a PDF to the passed file_object, from the
     given template name.
@@ -78,7 +82,7 @@ def generate_pdf(template_name, file_object=None, context=None): # pragma: no co
         context = {}
     tmpl = get_template(template_name)
     html = tmpl.render(context)
-    pisaStatus = pisa.pisaDocument(StringIO.StringIO(html.encode("ISO-8859-1")),
-                                   file_object)
+    pisaStatus = pisa.CreatePDF(html.encode("UTF-8"), file_object,
+                                encoding='UTF-8', link_callback=fetch_resources)
     file_object.close()
     return pisaStatus
